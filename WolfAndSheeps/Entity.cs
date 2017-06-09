@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace WolfAndSheeps
 {
@@ -22,10 +18,10 @@ namespace WolfAndSheeps
         {
             graphics.DrawImage(
                 m_sprite, 
-                Position.X * Field.CellWidth, 
-                Position.Y * Field.CellHeight, 
-                Field.CellWidth, 
-                Field.CellHeight
+                Position.X * m_parent.CellWidth, 
+                Position.Y * m_parent.CellHeight,
+                m_parent.CellWidth,
+                m_parent.CellHeight
             );
         }
 

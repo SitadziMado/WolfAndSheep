@@ -1,11 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace WolfAndSheeps
@@ -30,6 +24,7 @@ namespace WolfAndSheeps
             m_field = new Field(
                 sizeTrackBar.Value, 
                 sizeTrackBar.Value,
+                cellSizeTrackBar.Value,
                 defaultTrackBar.Value * 8,
                 bumpTrackBar.Value * 8,
                 pitTrackBar.Value * 8
@@ -38,21 +33,19 @@ namespace WolfAndSheeps
                 m_field.RequiredWidth + 100 + sideTable.Size.Width,
                 Math.Max(m_field.RequiredHeight + 100, sideTable.Size.Height)
             );
+
+            outputPictureBox.Invalidate();
         }
 
         private void sizeTrackBar_Scroll(object sender, EventArgs e)
         {
             Init();
-            outputPictureBox.Invalidate();
         }
 
         private void startButton_Click(object sender, EventArgs e)
         {
             if (m_field.Status != Field.StatusType.Game)
-            {
                 Init();
-                outputPictureBox.Invalidate();
-            }
             UpdateTickInterval();
             tickTimer.Enabled = true;
         }
@@ -69,6 +62,7 @@ namespace WolfAndSheeps
 
         private void tickTimer_Tick(object sender, EventArgs e)
         {
+            m_field.Debug = debugCheckBox.Checked;
             m_field.Tick();
             outputPictureBox.Invalidate();
             if (m_field.Status == Field.StatusType.Won)
@@ -80,7 +74,23 @@ namespace WolfAndSheeps
             {
                 tickTimer.Enabled = false;
                 MessageBox.Show("Волку некуда идти.", "Волк застрял", MessageBoxButtons.OK);
+                Init();
             }
+        }
+
+        private void pauseButton_Click(object sender, EventArgs e)
+        {
+            tickTimer.Enabled = false;
+        }
+
+        private void debugCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            m_field.Debug = debugCheckBox.Checked;
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            startButton.Focus();
         }
 
         private Field m_field;

@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="WolfAndSheeps.Cell">
+    <Position X="3.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AABAAAAACAAAAgAgAAAAAAAAAAAAIAAAAAAAQAIAAQA=</HashCode>
+      <FileName>Cell.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WolfAndSheeps.Entity">
+    <Position X="1.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAEAAAAAICAAgAgAAAAAAAgAAAAIAAAAAAAAAAAQAA=</HashCode>
+      <FileName>Entity.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WolfAndSheeps.Field">
+    <Position X="5.25" Y="0.5" Width="1.5" />
+    <NestedTypes>
+      <Enum Name="WolfAndSheeps.Field.StatusType" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Field.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Enum>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>gAEEAAA0RCQAEoAAAEIAAEQAQCAEAACAEAAAAAEEwEA=</HashCode>
+      <FileName>Field.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WolfAndSheeps.MainForm">
+    <Position X="7" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAgCgABAACAAABAAgASABCAKBAAAAAAAAAACABECACU=</HashCode>
+      <FileName>MainForm.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WolfAndSheeps.Sheep">
+    <Position X="3.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA=</HashCode>
+      <FileName>Sheep.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WolfAndSheeps.Wolf">
+    <Position X="1.75" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAQAA=</HashCode>
+      <FileName>Wolf.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

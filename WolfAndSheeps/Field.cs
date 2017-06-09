@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace WolfAndSheeps
 {
@@ -19,6 +17,7 @@ namespace WolfAndSheeps
         public Field(
             int width = WidthMinimum,
             int height = HeightMinimum,
+            int cellSize = 32,
             int defaultWeight = DefaultWeight,
             int bumpWeight = BumpWeight,
             int pitWeight = PitWeight
@@ -26,11 +25,12 @@ namespace WolfAndSheeps
         {
             Utility.Assert(
                 width >= WidthMinimum && height >= HeightMinimum &&
-                width <= WidthMaximum && height <= HeightMaximum, 
-                "Слишком маленькое поле."
+                width <= WidthMaximum && height <= HeightMaximum,
+                "Слишком маленькое либо слишком большое поле."
             );
             Width = width;
             Height = height;
+            CellWidth = CellHeight = cellSize;
 
             Status = StatusType.Game;
             m_cells = new Cell[Width, Height];
@@ -51,7 +51,7 @@ namespace WolfAndSheeps
             {
                 sheepPos = new Point(rnd.Next(Width), rnd.Next(Height));
             } while (
-                !IsPassable(sheepPos) || 
+                !IsPassable(sheepPos) ||
                 wolfPos.X == sheepPos.X ||
                 wolfPos.Y == sheepPos.Y
                 );
@@ -70,10 +70,44 @@ namespace WolfAndSheeps
                 v.Draw(graphics);
             }
 
+            if (Debug && m_maze != null)
+                foreach (var v in m_cells)
+                {
+                    int c = 255 * m_maze[v.Position.X / CellWidth, v.Position.Y / CellHeight] / (m_mazeMax + 2);
+                    if (c > 255)
+                        c = 255;
+                    if (c > 0)
+                    {
+                        Color color = Color.FromArgb(c, 0, 0);
+                        var pt = new Point(v.Position.X, v.Position.Y);
+                        using (Brush brush = new SolidBrush(color))
+                            graphics.FillRectangle(
+                                brush,
+                                pt.X,
+                                pt.Y,
+                                CellWidth,
+                                CellHeight
+                            );
+                    }
+                }
+
             foreach (var v in m_entities)
             {
                 v.Draw(graphics);
             }
+
+            /*if (Debug && m_maze != null)
+                using (Font font = new Font("Verdana", 14))
+                    foreach (var v in m_cells)
+                    {
+                        var pt = new Point(v.Position.X, v.Position.Y);
+                        graphics.DrawString(
+                            m_maze[v.Position.X / CellWidth, v.Position.Y / CellHeight].ToString(),
+                            font,
+                            Brushes.Red,
+                            pt
+                        );
+                    }*/
         }
 
         public void Tick()
@@ -173,6 +207,7 @@ namespace WolfAndSheeps
                 }
             }
 
+            m_mazeMax = value;
             var route = new Stack<Point>();
             route.Push(new Point(finishX, finishY));
             value = maze[finishX, finishY];
@@ -185,6 +220,22 @@ namespace WolfAndSheeps
                 Point next = new Point();
                 var pt = route.First();
 
+                for (int i = 0; i < 4; ++i)
+                {
+                    var ptr = new Point(pt.X + rot.X, pt.Y + rot.Y);
+                    rot = RotateCW(rot);
+
+                    if (InBounds(ptr))
+                    {
+                        temp = maze[ptr.X, ptr.Y];
+                        if ((temp < value) && (temp > 0) && !IsBump(ptr.X, ptr.Y))
+                            if (temp < min)
+                            {
+                                min = temp;
+                                next = ptr;
+                            }
+                    }
+                }
                 for (int i = 0; i < 4; ++i)
                 {
                     var ptr = new Point(pt.X + rot.X, pt.Y + rot.Y);
@@ -207,6 +258,8 @@ namespace WolfAndSheeps
 
             var rc = new Queue<Point>(route);
             rc.Dequeue();
+
+            m_maze = maze;
 
             return rc;
         }
@@ -258,17 +311,14 @@ namespace WolfAndSheeps
                 else
                     cellType = CellType.Pit;
 
-                m_cells[x, y] = new Cell(x, y, cellType);
+                m_cells[x, y] = new Cell(this, x, y, cellType);
             }
         }
 
-        public const int CellWidth = 32;
-        public const int CellHeight = CellWidth;
-
         private const int WidthMinimum = 5;
         private const int HeightMinimum = 5;
-        private const int WidthMaximum = 25;
-        private const int HeightMaximum = 25;
+        private const int WidthMaximum = 50;
+        private const int HeightMaximum = 50;
         private const int DefaultWeight = 80;
         private const int BumpWeight = 10;
         private const int PitWeight = 10;
@@ -276,14 +326,19 @@ namespace WolfAndSheeps
 
         private static Random rnd = new Random();
 
+        public int CellWidth { get; set; }
+        public int CellHeight { get; set; }
         public int RequiredWidth { get { return CellWidth * Width;  } }
         public int RequiredHeight { get { return CellHeight * Height; } }
         public int Width { get; set; }
         public int Height { get; set; }
         public StatusType Status { get; set; }
+        public bool Debug { get; set; }
 
         private Cell[,] m_cells;
         private List<Entity> m_entities = new List<Entity>();
         private Queue<Entity> m_nextTick;
+        private int[,] m_maze;
+        private int m_mazeMax = 1;
     }
 }

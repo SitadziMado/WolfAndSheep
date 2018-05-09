@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Threading;
+using System.Windows.Forms;
 
 namespace WolfAndSheeps
 {
@@ -42,23 +44,24 @@ namespace WolfAndSheeps
 
             do
             {
-                wolfPos = new Point(rnd.Next(Width), rnd.Next(Height));
+                wolfPos = new Point(mRnd.Next(Width), mRnd.Next(Height));
             } while (!IsPassable(wolfPos));
 
             m_entities.Add(new Wolf(wolfPos, this, new Bitmap(Image.FromFile("wolf.png"))));
 
             do
             {
-                sheepPos = new Point(rnd.Next(Width), rnd.Next(Height));
+                sheepPos = new Point(mRnd.Next(Width), mRnd.Next(Height));
             } while (
                 !IsPassable(sheepPos) ||
                 wolfPos.X == sheepPos.X ||
                 wolfPos.Y == sheepPos.Y
-                );
+            );
 
             m_entities.Add(new Sheep(sheepPos, this, new Bitmap(Image.FromFile("sheep.png"))));
 
-            m_nextTick = new Queue<Entity>(m_entities);
+            mWolfThread = new Thread(WolfProcedure);
+            mSheepThread = new Thread(SheepProcedure);
         }
 
         public void Draw(Graphics graphics)
@@ -95,37 +98,6 @@ namespace WolfAndSheeps
             {
                 v.Draw(graphics);
             }
-
-            /*if (Debug && m_maze != null)
-                using (Font font = new Font("Verdana", 14))
-                    foreach (var v in m_cells)
-                    {
-                        var pt = new Point(v.Position.X, v.Position.Y);
-                        graphics.DrawString(
-                            m_maze[v.Position.X / CellWidth, v.Position.Y / CellHeight].ToString(),
-                            font,
-                            Brushes.Red,
-                            pt
-                        );
-                    }*/
-        }
-
-        public void Tick()
-        {
-            Entity entity;
-            m_nextTick.Enqueue(entity = m_nextTick.Dequeue());
-
-            Wolf wolf = entity as Wolf;
-
-            if (wolf != null)
-            {
-                var path = Lee(wolf.Position, m_entities[1].Position);
-                if (path == null)
-                    Status = StatusType.Stuck;
-                wolf.Path = path;
-            }
-
-            entity.Tick();
         }
 
         public bool InBounds(int x, int y)
@@ -285,6 +257,103 @@ namespace WolfAndSheeps
             Status = StatusType.Won;
         }
 
+        public void Start()
+        {
+            Live = true;
+
+            mWolfThread.Start();
+            mSheepThread.Start();
+        }
+
+        public void Stop()
+        {
+            Live = false;
+        }
+
+        public void Suspend()
+        {
+            try
+            {
+                mWolfThread.Suspend();
+                mSheepThread.Suspend();
+            }
+            catch (ThreadStateException)
+            {
+                MessageBox.Show("Сначала запустите игру");
+            }
+        }
+
+        public void Resume()
+        {
+            try
+            {
+
+                mWolfThread.Resume();
+                mSheepThread.Resume();
+            }
+            catch (ThreadStateException)
+            {
+                MessageBox.Show("Игра уже идет");
+            }
+        }
+
+        public void Boost()
+        {
+            mWolfThread.Priority = ThreadPriority.AboveNormal;
+        }
+
+        private void WolfProcedure()
+        {
+            var wolf = (from v
+                        in m_entities
+                        where v is Wolf
+                        select v).Single() as Wolf;
+
+            var sheep = (from v
+                         in m_entities
+                         where v is Sheep
+                         select v).Single() as Sheep;
+
+            while (Live)
+            {
+                lock (mWolfLock)
+                    lock (mSheepLock)
+                    {
+
+                        var path = Lee(wolf.Position, sheep.Position);
+
+                        if (path == null)
+                            Status = StatusType.Stuck;
+
+                        wolf.Path = path;
+
+                        wolf.Tick();
+                    }
+
+                Thread.Sleep(Interval);
+            }
+        }
+
+        private void SheepProcedure()
+        {
+            var sheep = (from v
+                         in m_entities
+                         where v is Sheep
+                         select v).Single() as Sheep;
+
+            while (Live)
+            {
+                Monitor.Enter(mSheepLock);
+
+                if (Status != StatusType.Won)
+                    sheep.Tick();
+
+                Monitor.Exit(mSheepLock);
+
+                Thread.Sleep(Interval);
+            }
+        }
+
         private Point RotateCW(Point pt)
         {
             return new Point(pt.Y, -pt.X);
@@ -301,7 +370,7 @@ namespace WolfAndSheeps
                 int x = i % Width;
                 int y = i / Width;
 
-                double type = (double)rnd.Next(defaultWeight + bumpWeight + pitWeight + 1);
+                double type = mRnd.Next(defaultWeight + bumpWeight + pitWeight + 1);
                 CellType cellType;
 
                 if (type < defaultWeight)
@@ -322,9 +391,8 @@ namespace WolfAndSheeps
         private const int DefaultWeight = 80;
         private const int BumpWeight = 10;
         private const int PitWeight = 10;
-
-
-        private static Random rnd = new Random();
+        
+        private static Random mRnd = new Random();
 
         public int CellWidth { get; set; }
         public int CellHeight { get; set; }
@@ -334,11 +402,19 @@ namespace WolfAndSheeps
         public int Height { get; set; }
         public StatusType Status { get; set; }
         public bool Debug { get; set; }
+        public int Interval { get; set; }
+        public bool Live { get; set; }
 
         private Cell[,] m_cells;
         private List<Entity> m_entities = new List<Entity>();
-        private Queue<Entity> m_nextTick;
         private int[,] m_maze;
         private int m_mazeMax = 1;
+
+        private object mWolfLock = new object();
+        private object mSheepLock = new object();
+        private object mSuspendObject = new object();
+
+        private Thread mWolfThread;
+        private Thread mSheepThread;
     }
 }

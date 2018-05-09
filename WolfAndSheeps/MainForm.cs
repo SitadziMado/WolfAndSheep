@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace WolfAndSheeps
 {
@@ -13,79 +15,100 @@ namespace WolfAndSheeps
             Init();
         }
 
-        private void outputPictureBox_Paint(object sender, PaintEventArgs e)
+        private void OutputPictureBox_Paint(object sender, PaintEventArgs e)
         {
-            m_field.Draw(e.Graphics);
+            mField.Draw(e.Graphics);
         }
 
         private void Init()
         {
-            tickTimer.Enabled = false;
-            m_field = new Field(
-                sizeTrackBar.Value, 
+            mField = new Field(
+                sizeTrackBar.Value,
                 sizeTrackBar.Value,
                 cellSizeTrackBar.Value,
                 defaultTrackBar.Value * 8,
                 bumpTrackBar.Value * 8,
                 pitTrackBar.Value * 8
-            );
+            )
+            {
+                Debug = DebugCheckBox.Checked
+            };
+
             Size = new Size(
-                m_field.RequiredWidth + 100 + sideTable.Size.Width,
-                Math.Max(m_field.RequiredHeight + 100, sideTable.Size.Height)
+                mField.RequiredWidth + 100 + sideTable.Size.Width,
+                Math.Max(mField.RequiredHeight + 100, sideTable.Size.Height)
             );
 
             outputPictureBox.Invalidate();
         }
 
-        private void sizeTrackBar_Scroll(object sender, EventArgs e)
+        private void SizeTrackBar_Scroll(object sender, EventArgs e)
         {
             Init();
         }
 
-        private void startButton_Click(object sender, EventArgs e)
+        private void StartButton_Click(object sender, EventArgs e)
         {
-            if (m_field.Status != Field.StatusType.Game)
-                Init();
-            UpdateTickInterval();
-            tickTimer.Enabled = true;
+            if (mField.Live)
+            {
+                mField.Resume();
+            }
+            else
+            {
+                if (mField.Status != Field.StatusType.Game)
+                    Init();
+
+                UpdateTickInterval();
+
+                mField.Start();
+
+                var redraw = Task.Factory.StartNew(() =>
+                {
+                    while (mField.Live)
+                    {
+                        RedrawProcedure();
+
+                        Thread.Sleep(mField.Interval);
+                    }
+                });
+            }
         }
 
-        private void intervalTrackBar_Scroll(object sender, EventArgs e)
+        private void IntervalTrackBar_Scroll(object sender, EventArgs e)
         {
             UpdateTickInterval();
         }
 
         private void UpdateTickInterval()
         {
-            tickTimer.Interval = 1000 - intervalTrackBar.Value * 100;
+            mField.Interval = 1000 - intervalTrackBar.Value * 100;
         }
 
-        private void tickTimer_Tick(object sender, EventArgs e)
+        private void RedrawProcedure()
         {
-            m_field.Debug = debugCheckBox.Checked;
-            m_field.Tick();
             outputPictureBox.Invalidate();
-            if (m_field.Status == Field.StatusType.Won)
+
+            if (mField.Status == Field.StatusType.Won)
             {
-                tickTimer.Enabled = false;
+                mField.Stop();
                 MessageBox.Show("Волк съел овцу.", "Победа!", MessageBoxButtons.OK);
             }
-            else if (m_field.Status == Field.StatusType.Stuck)
+            else if (mField.Status == Field.StatusType.Stuck)
             {
-                tickTimer.Enabled = false;
+                mField.Stop();
                 MessageBox.Show("Волку некуда идти.", "Волк застрял", MessageBoxButtons.OK);
-                Init();
+                // Init();
             }
         }
 
-        private void pauseButton_Click(object sender, EventArgs e)
+        private void PauseButton_Click(object sender, EventArgs e)
         {
-            tickTimer.Enabled = false;
+            mField.Suspend();
         }
 
-        private void debugCheckBox_CheckedChanged(object sender, EventArgs e)
+        private void DebugCheckBox_CheckedChanged(object sender, EventArgs e)
         {
-            m_field.Debug = debugCheckBox.Checked;
+            mField.Debug = DebugCheckBox.Checked;
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -93,6 +116,16 @@ namespace WolfAndSheeps
             startButton.Focus();
         }
 
-        private Field m_field;
+        private Field mField;
+
+        private void NewMapButton_Click(object sender, EventArgs e)
+        {
+            Init();
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            mField.Stop();
+        }
     }
 }

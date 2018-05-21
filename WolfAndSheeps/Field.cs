@@ -30,51 +30,34 @@ namespace WolfAndSheeps
                 width <= WidthMaximum && height <= HeightMaximum,
                 "Слишком маленькое либо слишком большое поле."
             );
+
             Width = width;
             Height = height;
             CellWidth = CellHeight = cellSize;
 
             Status = StatusType.Game;
-            m_cells = new Cell[Width, Height];
+            mCells = new Cell[Width, Height];
 
             InternalFillCells(defaultWeight, bumpWeight, pitWeight);
 
-            Point wolfPos;
-            Point sheepPos;
-
-            do
-            {
-                wolfPos = new Point(mRnd.Next(Width), mRnd.Next(Height));
-            } while (!IsPassable(wolfPos));
-
-            m_entities.Add(new Wolf(wolfPos, this, new Bitmap(Image.FromFile("wolf.png"))));
-
-            do
-            {
-                sheepPos = new Point(mRnd.Next(Width), mRnd.Next(Height));
-            } while (
-                !IsPassable(sheepPos) ||
-                wolfPos.X == sheepPos.X ||
-                wolfPos.Y == sheepPos.Y
-            );
-
-            m_entities.Add(new Sheep(sheepPos, this, new Bitmap(Image.FromFile("sheep.png"))));
-
-            mWolfThread = new Thread(WolfProcedure);
-            mSheepThread = new Thread(SheepProcedure);
+            AddWolf();
+            AddWolf();
+            AddSheep();
+            AddSheep();
+            AddSheep();
         }
 
         public void Draw(Graphics graphics)
         {
             graphics.Clear(Color.White);
 
-            foreach (var v in m_cells)
+            foreach (var v in mCells)
             {
                 v.Draw(graphics);
             }
 
             if (Debug && m_maze != null)
-                foreach (var v in m_cells)
+                foreach (var v in mCells)
                 {
                     int c = 255 * m_maze[v.Position.X / CellWidth, v.Position.Y / CellHeight] / (m_mazeMax + 2);
                     if (c > 255)
@@ -94,7 +77,7 @@ namespace WolfAndSheeps
                     }
                 }
 
-            foreach (var v in m_entities)
+            foreach (var v in mEntities)
             {
                 v.Draw(graphics);
             }
@@ -112,7 +95,7 @@ namespace WolfAndSheeps
 
         public bool IsPassable(int x, int y)
         {
-            return m_cells[x, y].Passable;
+            return mCells[x, y].Passable;
         }
 
         public bool IsPassable(Point pt)
@@ -122,7 +105,7 @@ namespace WolfAndSheeps
 
         public bool IsBump(int x, int y)
         {
-            return m_cells[x, y].TerrainType == CellType.Bump;
+            return mCells[x, y].TerrainType == CellType.Bump;
         }
 
         public bool IsBump(Point pt)
@@ -137,7 +120,7 @@ namespace WolfAndSheeps
 
             int value = 1;
 
-            if (m_cells[startX, startY].Passable)
+            if (mCells[startX, startY].Passable)
                 maze[startX, startY] = value++;
             else
                 return null;
@@ -156,7 +139,7 @@ namespace WolfAndSheeps
                 var pt = unmarked.Dequeue();
 
                 value = maze[pt.X, pt.Y];
-                int nextValue = value + m_cells[pt.X, pt.Y].Time;
+                int nextValue = value + mCells[pt.X, pt.Y].Time;
 
                 for (int i = 0; i < 4; ++i)
                 {
@@ -164,7 +147,7 @@ namespace WolfAndSheeps
                     rot = RotateCW(rot);
 
                     if (InBounds(ptr))
-                        if (m_cells[ptr.X, ptr.Y].Passable)
+                        if (mCells[ptr.X, ptr.Y].Passable)
                         {
                             if ((maze[ptr.X, ptr.Y] == 0 || maze[ptr.X, ptr.Y] > nextValue))
                             {
@@ -244,7 +227,7 @@ namespace WolfAndSheeps
         public Entity[] EnumEntitiesAtCell(int x, int y)
         {
             var rc = (
-                from v in m_entities
+                from v in mEntities
                 where (v.Position.X == x && v.Position.Y == y)
                 select v
             ).ToArray();
@@ -252,17 +235,22 @@ namespace WolfAndSheeps
             return rc;
         }
 
-        public void Win()
+        public void Win(Wolf self)
         {
-            Status = StatusType.Won;
+            // Status = StatusType.Won;
+            self.Prey.Kill();
+            mEntities.Remove(self.Prey);
+            self.Prey = null;
         }
 
         public void Start()
         {
             Live = true;
 
-            mWolfThread.Start();
-            mSheepThread.Start();
+            foreach (var v in mEntities)
+            {
+                v.Thread.Start();
+            }
         }
 
         public void Stop()
@@ -274,8 +262,10 @@ namespace WolfAndSheeps
         {
             try
             {
-                mWolfThread.Suspend();
-                mSheepThread.Suspend();
+                foreach (var v in mEntities)
+                {
+                    v.Thread.Suspend();
+                }
             }
             catch (ThreadStateException)
             {
@@ -287,9 +277,10 @@ namespace WolfAndSheeps
         {
             try
             {
-
-                mWolfThread.Resume();
-                mSheepThread.Resume();
+                foreach (var v in mEntities)
+                {
+                    v.Thread.Resume();
+                }
             }
             catch (ThreadStateException)
             {
@@ -299,57 +290,68 @@ namespace WolfAndSheeps
 
         public void Boost()
         {
-            mWolfThread.Priority = ThreadPriority.AboveNormal;
+            // mWolfThread.Priority = ThreadPriority.AboveNormal;
         }
 
-        private void WolfProcedure()
+        public void AddWolf()
         {
-            var wolf = (from v
-                        in m_entities
-                        where v is Wolf
-                        select v).Single() as Wolf;
+            var wolf = new Wolf(NextPoint(), this, new Bitmap(Image.FromFile("wolf.png")));
+            wolf.Thread = new Thread(() => { WolfProcedure(wolf); });
+            mEntities.Add(wolf);
+        }
 
-            var sheep = (from v
-                         in m_entities
-                         where v is Sheep
-                         select v).Single() as Sheep;
+        public void AddSheep()
+        {
+            var sheep = new Sheep(NextPoint(), this, new Bitmap(Image.FromFile("sheep.png")));
+            sheep.Thread = new Thread(() => { SheepProcedure(sheep); });
+            mEntities.Add(sheep);
+        }
 
-            while (Live)
+        public Cell CellAt(Point pos)
+        {
+            return mCells[pos.X, pos.Y];
+        }
+
+        private void WolfProcedure(Wolf self)
+        { 
+            while (self.Live && Live)
             {
-                lock (mWolfLock)
-                    lock (mSheepLock)
+                try
+                {
+                    if (self.Prey == null)
                     {
+                        lock (mPreyFinderLock)
+                        {
+                            self.Prey = FindPrey();
+                        }
+                    }
 
-                        var path = Lee(wolf.Position, sheep.Position);
+                    lock (self.Prey)
+                    {
+                        var path = Lee(self.Position, self.Prey.Position);
 
                         if (path == null)
-                            Status = StatusType.Stuck;
+                            break;
+                        // Status = StatusType.Stuck;
 
-                        wolf.Path = path;
-
-                        wolf.Tick();
+                        self.Path = path;
+                        self.Tick();
                     }
+                }
+                catch (InvalidOperationException)
+                {
+                    Thread.Sleep(500);
+                }
 
                 Thread.Sleep(Interval);
             }
         }
 
-        private void SheepProcedure()
+        private void SheepProcedure(Sheep self)
         {
-            var sheep = (from v
-                         in m_entities
-                         where v is Sheep
-                         select v).Single() as Sheep;
-
-            while (Live)
+            while (self.Live && Live)
             {
-                Monitor.Enter(mSheepLock);
-
-                if (Status != StatusType.Won)
-                    sheep.Tick();
-
-                Monitor.Exit(mSheepLock);
-
+                self.Tick();
                 Thread.Sleep(Interval);
             }
         }
@@ -380,7 +382,50 @@ namespace WolfAndSheeps
                 else
                     cellType = CellType.Pit;
 
-                m_cells[x, y] = new Cell(this, x, y, cellType);
+                mCells[x, y] = new Cell(this, x, y, cellType);
+            }
+        }
+
+        private Point NextPoint()
+        {
+            Point pos;
+            bool restart = false;
+
+            do
+            {
+                restart = false;
+                pos = new Point(mRnd.Next(Width), mRnd.Next(Height));
+
+                foreach (var v in mEntities)
+                {
+                    if (pos == v.Position)
+                    {
+                        restart = true;
+                    }
+                }
+            } while (restart || !IsPassable(pos));
+
+            return pos;
+        }
+
+        private Sheep FindPrey()
+        {
+            try
+            {
+                var result = (from v
+                              in mEntities
+                              where v is Sheep && !(v as Sheep).IsHunted
+                              select v).First() as Sheep;
+
+                result.IsHunted = true;
+                return result;
+            }
+            catch (InvalidOperationException e)
+            {
+                throw new InvalidOperationException(
+                    "Нет доступной овцы",
+                    e
+                );
             }
         }
 
@@ -405,16 +450,14 @@ namespace WolfAndSheeps
         public int Interval { get; set; }
         public bool Live { get; set; }
 
-        private Cell[,] m_cells;
-        private List<Entity> m_entities = new List<Entity>();
+        private Cell[,] mCells;
+        private List<Entity> mEntities = new List<Entity>();
         private int[,] m_maze;
         private int m_mazeMax = 1;
 
         private object mWolfLock = new object();
         private object mSheepLock = new object();
         private object mSuspendObject = new object();
-
-        private Thread mWolfThread;
-        private Thread mSheepThread;
+        private object mPreyFinderLock = new object();
     }
 }

@@ -18,6 +18,11 @@ namespace WolfAndSheeps
             {
                 var next = Path.Dequeue();
 
+                if (Prey.Position == next)
+                {
+                    mParent.Win(this);
+                }
+
                 Move(new Point(next.X - Position.X, next.Y - Position.Y));
                 //Position = next;
 
@@ -25,15 +30,16 @@ namespace WolfAndSheeps
                     Path = null;
             }
 
-            var sheep = (
-                from v in m_parent.EnumEntitiesAtCell(Position.X, Position.Y)
+            /*var sheep = (
+                from v in mParent.EnumEntitiesAtCell(Position.X, Position.Y)
                 where v is Sheep
                 select v)
                 .ToArray();
             if (sheep.Length > 0)
-                m_parent.Win();
+                mParent.Win(this);*/
         }
 
         public Queue<Point> Path { get; set; }
+        public Sheep Prey { get; set; }
     }
 }

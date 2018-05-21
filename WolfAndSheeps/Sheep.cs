@@ -36,5 +36,7 @@ namespace WolfAndSheeps
                 }
             } while (!Move(offset));
         }
+
+        public bool IsHunted { get; set; }
     }
 }
